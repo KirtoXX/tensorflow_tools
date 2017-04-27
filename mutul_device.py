@@ -41,31 +41,32 @@ class mutul_gpu:
         return average_grads
 
 
-    def _get_loss(self,x, y_,network,loss_function,scope, reuse_variables=None):
+    def _get_loss(self,x, y_,network,loss_function,scope, reuse_variables=True):
         with tf.variable_scope(tf.get_variable_scope(), reuse=reuse_variables):
             y = network(x)
-        cross_entropy = loss_function(y,y_)
-        regularization_loss = tf.add_n(tf.get_collection('losses', scope))
-        loss = cross_entropy + regularization_loss
+        loss = loss_function(y,y_)
+        tf.add_to_collection('losses',loss)
+        #loss = cross_entropy + regularization_loss
         return loss
 
 
-    def trainop_and_loss(self,loss,train_op):
+    def get_trainop(self):
         tower_grads = []
-        loss_list = []
         global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
         # 将运算绑定在设备上
-        for device in self.device_list:
-            with tf.device(device):
-                with tf.name_scope(device) as scope:
-                    reuse_variables = True
+        reuse_variables = False
+        for i,device in enumerate(self.device_list):
+            print(device)
+            with tf.device(device):    #name
+                with tf.name_scope('GPU_%d' % i) as scope:
                     cur_loss = self._get_loss(x=self.input,
                                              y_=self.real_target,
                                              network=self.network,
-                                             loss=self.loss,
+                                             loss_function=self.loss,
                                              scope=scope,
                                              reuse_variables=reuse_variables)
-                    grads = train_op.compute_gradients(cur_loss)
+                    reuse_variables = True
+                    grads = self.train_op.compute_gradients(cur_loss)
 
                     tower_grads.append(grads)
         #计算总梯度
@@ -74,7 +75,7 @@ class mutul_gpu:
             if grad is not None:
                 tf.histogram_summary('gradients_on_average/%s' % var.op.name, grad)
                 # 使用平均梯度更新参数。
-                apply_gradient_op = train_op.apply_gradients(grads, global_step=global_step)
+                apply_gradient_op = self.train_op.apply_gradients(grads, global_step=global_step)
                 for var in tf.trainable_variables():
                     tf.histogram_summary(var.op.name, var)
 
@@ -84,13 +85,11 @@ class mutul_gpu:
                 variables_averages_op = variable_averages.apply(variables_to_average)
                 # 每一轮迭代需要更新变量的取值并更新变量的滑动平均值。
                 train_op2 = tf.group(apply_gradient_op, variables_averages_op)
-        return train_op2,cur_loss
+        return train_op2
 
-
-
-
-
-
+    def get_total_loss(self):
+        losses = tf.get_collection('losses',scope=None)
+        return tf.add_n(losses,name='total_loss')
 
 
 

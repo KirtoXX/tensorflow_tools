@@ -20,7 +20,7 @@ for index,name in enumerate(class1):   #python 枚举
     class_path = data_path+name +'/'
     images_path = os.listdir(class_path)
 
-    print('process class '+name)
+    print('process class '+name+'...')
     for signle_image in images_path:
         temp_path = class_path+signle_image
         #img = Image.open(temp_path)
@@ -29,16 +29,16 @@ for index,name in enumerate(class1):   #python 枚举
         img = misc.imread(temp_path,'RGB')
         height,weight= img.shape
         channel = 3
-        img_raw = img.tobytes()  # 将图片转化为原生bytes
+        img_raw = img.tostring()  # 将图片转化为原生string
 
         example = tf.train.Example(features=tf.train.Features(feature={
-            "label": tf.train.Feature(int64_list=tf.train.Int32List(value=[index])),
-            'height':tf.train.Feature(int64_list=tf.train.Int32List(value=[height])),
-            'weight': tf.train.Feature(int64_list=tf.train.Int32List(value=[weight])),
-            'channel': tf.train.Feature(int64_list=tf.train.Int32List(value=[channel])),
+            "label": tf.train.Feature(int64_list=tf.train.Int64List(value=[index])),
+            'height':tf.train.Feature(int64_list=tf.train.Int64List(value=[height])),
+            'weight': tf.train.Feature(int64_list=tf.train.Int64List(value=[weight])),
+            'channel': tf.train.Feature(int64_list=tf.train.Int64List(value=[channel])),
             'img_raw': tf.train.Feature(bytes_list=tf.train.BytesList(value=[img_raw]))
         }))
 
         writer.write(example.SerializeToString())  # 序列化为字符串
-    print('class '+name+' done!')
+print('done.')
 writer.close()
